@@ -1,52 +1,58 @@
-
 import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
-st.set_page_config(page_title="나만의 북마크 지도 🗺️", layout="wide")
 
-st.title("📌 나만의 북마크 지도")
-st.write("지도를 클릭해서 북마크를 추가해보세요!")
+# 앱 제목
+st.title("📍 나만의 위치 북마크 지도")
 
-# 초기 위치: 서울
-default_lat, default_lon = 37.5665, 126.9780
+# 세션 상태 초기화
+if "places" not in st.session_state:
+    st.session_state.places = []
 
-# 세션 상태에 북마크 저장
-if "bookmarks" not in st.session_state:
-    st.session_state.bookmarks = []
+# 사이드바에 입력 폼
+with st.sidebar:
+    st.header("🔖 장소 추가하기")
+    name = st.text_input("장소 이름")
+    lat = st.number_input("위도 (예: 37.5665)", format="%.6f")
+    lon = st.number_input("경도 (예: 126.9780)", format="%.6f")
+    add_button = st.button("추가하기")
 
-# 지도 생성
-m = folium.Map(location=[default_lat, default_lon], zoom_start=12)
+    if add_button:
+        if name and lat and lon:
+            st.session_state.places.append({
+                "name": name,
+                "lat": lat,
+                "lon": lon
+            })
+            st.success(f"'{name}' 이(가) 북마크에 추가되었습니다.")
+        else:
+            st.warning("모든 필드를 입력해주세요.")
 
-# 기존 북마크 마커 추가
-for bm in st.session_state.bookmarks:
+# 지도 중심 좌표 설정
+map_center = [37.5665, 126.9780]  # 서울 기본
+
+# folium 지도 생성
+m = folium.Map(location=map_center, zoom_start=12)
+
+# 저장된 장소를 마커로 표시
+for place in st.session_state.places:
     folium.Marker(
-        location=[bm["lat"], bm["lon"]],
-        popup=bm["label"],
-        icon=folium.Icon(color="red", icon="bookmark")
+        location=[place["lat"], place["lon"]],
+        popup=place["name"],
+        icon=folium.Icon(color="blue", icon="bookmark")
     ).add_to(m)
 
-# 지도 출력 (clickable)
-st.markdown("### 🗺️ 지도")
-map_data = st_folium(m, width=700, height=500)
+# 지도 출력
+st.subheader("🗺️ 북마크 지도")
+st_data = st_folium(m, width=700, height=500)
 
-# 지도 클릭시 마커 추가
-if map_data and map_data.get("last_clicked"):
-    lat = map_data["last_clicked"]["lat"]
-    lon = map_data["last_clicked"]["lng"]
+# 장소 목록 보기
+if st.session_state.places:
+    st.subheader("📋 북마크 리스트")
+    df = pd.DataFrame(st.session_state.places)
+    st.table(df)
 
-    with st.form("북마크 폼"):
-        label = st.text_input("이 장소의 이름을 입력하세요", value=f"위치 {len(st.session_state.bookmarks)+1}")
-        submitted = st.form_submit_button("북마크 추가")
-
-        if submitted:
-            st.session_state.bookmarks.append({"lat": lat, "lon": lon, "label": label})
-            st.success(f"📌 '{label}' 북마크가 추가되었습니다!")
-            st.experimental_rerun()
-
-# 북마크 목록 출력
-st.markdown("### 📍 북마크 목록")
-if st.session_state.bookmarks:
-    st.dataframe(st.session_state.bookmarks, use_container_width=True)
-else:
-    st.info("아직 북마크가 없습니다. 지도를 클릭해 추가해보세요!")
+    # 저장 버튼
+    csv = pd.DataFrame(st.session_state.places).to_csv(index=False).encode('utf-8-sig')
+    st.download_button("📥 CSV로 저장하기", csv, file_name="my_bookmarks.csv", mime="text/csv")

@@ -1,4 +1,4 @@
 folium
 streamlit-folium
 plotly
-pygame
+install pygame

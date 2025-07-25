@@ -1,53 +1,58 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st
 import plotly.graph_objects as go
 
-# 파일 업로드
-st.title("👥 인구 피라미드 시각화 (2025년 6월 기준)")
-uploaded_file = st.file_uploader("💾 성별 연령별 인구 데이터 (.xlsx)를 업로드하세요", type="xlsx")
+# 데이터 불러오기
+df = pd.read_csv("202506_202506_연령별인구현황_월간_남녀구분 (1).csv", encoding="cp949")
 
-if uploaded_file:
-    df = pd.read_excel(uploaded_file)
-    df = df[df['행정구역'] == '전국']
+# 전국 기준 데이터만 필터링
+df_total = df[df["행정구역"].str.contains("전국")].copy()
 
-    # 남성과 여성 연령별 열 추출
-    male_cols = [col for col in df.columns if '남_' in col and col.split('_')[-1].isdigit()]
-    female_cols = [col for col in df.columns if '여_' in col and col.split('_')[-1].isdigit()]
-    ages = [col.split('_')[-1] for col in male_cols]
+# 연령별 컬럼 추출
+male_cols = [col for col in df_total.columns if "남_" in col and "세" in col]
+female_cols = [col for col in df_total.columns if "여_" in col and "세" in col]
 
-    male_pop = df[male_cols].values.flatten()
-    female_pop = df[female_cols].values.flatten()
+# 연령 추출 (문자열에서 '0세', '1세', ... -> 숫자 추출)
+ages = [col.split("_")[-1] for col in male_cols]
+ages = [int(age.replace("세", "").replace("이상", "100")) for age in ages]
 
-    male_pop = -male_pop  # 왼쪽에 보이도록 음수 처리
+# 값 숫자로 변환
+male_vals = df_total[male_cols].iloc[0].str.replace(",", "").astype(int).tolist()
+female_vals = df_total[female_cols].iloc[0].str.replace(",", "").astype(int).tolist()
 
-    # 피라미드 차트 생성
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        y=ages,
-        x=male_pop,
-        name='남성',
-        orientation='h',
-        marker=dict(color='royalblue')
-    ))
-    fig.add_trace(go.Bar(
-        y=ages,
-        x=female_pop,
-        name='여성',
-        orientation='h',
-        marker=dict(color='lightpink')
-    ))
+# Streamlit 앱 구성
+st.title("👶👨‍🦳 2025년 6월 대한민국 연령별 인구 피라미드")
+st.markdown("#### 출처: 통계청 / 단위: 명")
 
-    fig.update_layout(
-        title='전국 성별 연령별 인구 피라미드 (2025년 6월)',
-        barmode='overlay',
-        bargap=0.1,
-        xaxis=dict(title='인구 수', tickvals=[-2000000, -1000000, 0, 1000000, 2000000],
-                   ticktext=['200만', '100만', '0', '100만', '200만']),
-        yaxis=dict(title='연령'),
-        template='plotly_white',
-        height=800
-    )
+# Plotly 피라미드 차트
+fig = go.Figure()
 
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("엑셀 파일을 업로드해주세요 (.xlsx)")
+fig.add_trace(go.Bar(
+    y=ages,
+    x=[-val for val in male_vals],
+    name="남성",
+    orientation="h",
+    marker=dict(color="cornflowerblue")
+))
+
+fig.add_trace(go.Bar(
+    y=ages,
+    x=female_vals,
+    name="여성",
+    orientation="h",
+    marker=dict(color="lightcoral")
+))
+
+fig.update_layout(
+    barmode='relative',
+    xaxis=dict(
+        title="인구 수",
+        tickvals=[-1000000, -500000, 0, 500000, 1000000],
+        ticktext=["100만", "50만", "0", "50만", "100만"]
+    ),
+    yaxis=dict(title="연령", autorange="reversed"),
+    height=800,
+    template="plotly_white"
+)
+
+st.plotly_chart(fig, use_container_width=True)

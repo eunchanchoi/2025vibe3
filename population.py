@@ -1,43 +1,46 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 
-# 제목
-st.title("📊 2025년 6월 시도별 남녀 총인구수 시각화")
+# CSV 파일 경로
+csv_path = "202506_202506_연령별인구현황_월간_남녀구분 (1).csv"
 
-# CSV 파일 업로드
-uploaded_file = st.file_uploader("CSV 파일을 업로드하세요", type=["csv"])
+# 데이터 불러오기
+df = pd.read_csv(csv_path, encoding='cp949')
 
-if uploaded_file is not None:
-    # 데이터 읽기
-    df = pd.read_csv(uploaded_file, encoding='cp949')
+# 남녀 연령별 컬럼 추출
+male_columns = [col for col in df.columns if '남_' in col and '세' in col]
+female_columns = [col for col in df.columns if '여_' in col and '세' in col]
+ages = [col.split('_')[-1].replace('세', '') for col in male_columns]
 
-    # 시도명만 추출
-    df['시도'] = df['행정구역'].str.extract(r'([\uAC00-\uD7A3]+)')
+# 서울특별시 데이터만 필터링
+seoul = df[df['행정구역'].str.contains('서울특별시')]
 
-    # 쉼표 제거 후 숫자형으로 변환
-    df['2025년06월_남_총인구수'] = df['2025년06월_남_총인구수'].str.replace(',', '').astype(int)
-    df['2025년06월_여_총인구수'] = df['2025년06월_여_총인구수'].str.replace(',', '').astype(int)
+# 남녀 인구 추출 및 숫자형으로 변환
+male_pop = seoul[male_columns].iloc[0].str.replace(',', '').astype(int).tolist()
+female_pop = seoul[female_columns].iloc[0].str.replace(',', '').astype(int).tolist()
 
-    # 총인구수 계산 및 정렬
-    df['총인구수'] = df['2025년06월_남_총인구수'] + df['2025년06월_여_총인구수']
-    df_sorted = df.sort_values(by='총인구수', ascending=False)
+# 시각화를 위한 데이터프레임
+age_df = pd.DataFrame({
+    '연령': list(map(int, ages)),
+    '남자': male_pop,
+    '여자': female_pop
+}).sort_values(by='연령')
 
-    # Plotly 그래프
-    fig = px.bar(
-        df_sorted,
-        x='시도',
-        y=['2025년06월_남_총인구수', '2025년06월_여_총인구수'],
-        labels={'value': '인구수', 'variable': '성별'},
-        title='2025년 6월 시도별 남녀 총인구수',
-        barmode='group',
-        color_discrete_map={
-            '2025년06월_남_총인구수': 'blue',
-            '2025년06월_여_총인구수': 'pink'
-        }
-    )
+# Streamlit 앱 UI
+st.title("📊 서울특별시 연령별 인구 분포 (2025년 6월 기준)")
+st.markdown("출처: 행정안전부 주민등록인구통계")
 
-    st.plotly_chart(fig, use_container_width=True)
+# Plotly 막대 그래프
+fig = go.Figure()
+fig.add_trace(go.Bar(x=age_df['연령'], y=age_df['남자'], name='남자', marker_color='royalblue'))
+fig.add_trace(go.Bar(x=age_df['연령'], y=age_df['여자'], name='여자', marker_color='lightcoral'))
 
-else:
-    st.info("왼쪽 사이드바 또는 위에서 CSV 파일을 업로드하세요.")
+fig.update_layout(
+    title="연령별 인구 수",
+    xaxis_title="연령",
+    yaxis_title="인구 수",
+    barmode='group'
+)
+
+st.plotly_chart(fig, use_container_width=True)

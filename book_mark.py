@@ -1,8 +1,8 @@
 
 import streamlit as st
-from streamlit_folium import st_folium
+import pandas as pd
 import folium
-
+from streamlit_folium import st_folium
 st.set_page_config(page_title="나만의 북마크 지도 🗺️", layout="wide")
 
 st.title("📌 나만의 북마크 지도")

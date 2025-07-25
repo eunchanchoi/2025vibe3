@@ -1,4 +1,3 @@
 folium
 streamlit-folium
-pip install streamlit pandas plotly
-streamlit run app.py
+plotly
